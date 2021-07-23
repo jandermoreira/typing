@@ -10,21 +10,51 @@ import re
 
 from pygments import highlight
 from pygments import lexers
-from terminal import ImageFormatter
+from formatter import ImageFormatter
 from pygments.styles import get_style_by_name
 
 
-class CodeSegments:
-    def __init__(self, source_code = '', language = 'C', style = 'zenburn'):
+class TypingNoTimeline(Exception):
+    '''No timeline'''
+
+
+class TypingUnbalancedMarkup(Exception):
+    '''Unbalanced markup tags'''
+
+
+class Typing:
+    def __init__(self, source_code = '', language = 'C', style = 'default'):
         self.scene_counter = 0
         self.language = language
         self.source_code = source_code
-        self.code_segments = self.segment_code(source_code)
+        self.timeline, self.code_segments = self.segment_code(source_code)
         self.style = style
 
     def segment_code(self, source_code):
         source_code = source_code.replace('\n', '@newline@')
 
+        # Get timeline
+        match_result = re.search(r'@timeline:(.*?)@',
+                                 source_code.replace('@newline@', ''))
+        if not match_result:
+            raise TypingNoTimeline
+        else:
+            source_code = source_code.replace(match_result.group(0), '')
+
+            finished = False
+            timeline = []
+            timeline_text = match_result.group(1)
+            while not finished:
+                match_result = re.search(
+                    r'\([\s]*([\d.]*)[\s]*,[\s]*([\d.]*)[\s]*\)', timeline_text)
+                if not match_result:
+                    finished = True
+                else:
+                    timeline.append((float(match_result.group(1)),
+                                     float(match_result.group(2))))
+                    timeline_text = timeline_text[match_result.span()[1]:]
+
+        # Get code segments
         match_result = True
         code_segments = []
         while match_result:
@@ -32,8 +62,7 @@ class CodeSegments:
                                      source_code)
             if match_result:
                 if match_result.group(1) != match_result.group(4):
-                    print('Unbalanced markup tags')
-                    exit(1)
+                    raise TypingUnbalancedMarkup
                 previous_text = source_code[:match_result.span()[0]]
                 if len(previous_text) > 0:
                     code_segments.append(
@@ -52,7 +81,7 @@ class CodeSegments:
                 {'class': 'text', 'scene': 0,
                  'code': source_code.replace('@newline@', '\n')})
 
-        return code_segments
+        return timeline, code_segments
 
     def code_scene(self, scene_number):
         segments = [seg for seg in self.code_segments if
@@ -74,7 +103,7 @@ class CodeSegments:
         image_sequence = []
         if scene_number == 0:
             # animate base code
-            print(']]]]] base code')
+            # print(']]]]] base code')
             source_code = ''.join([seg['code'] for seg in self.code_segments
                                    if seg['class'] == 'text'])
             typing_position = 0
@@ -137,10 +166,12 @@ class CodeSegments:
                     lexer, formatter))
         return image_sequence
 
-    def animate(self, timeline, verbose = True):
+    def animate(self, verbose = True):
         temp_prefix = f'/tmp/typing.tmp.{getpid()}_'
         scene_frames_count = []
+        timeline = self.timeline
         concatation = ''
+        print(self.timeline)
         for scene in range(self.scene_counter + 1):
             if verbose:
                 print(f'> Scene #{scene}:\n  - Creating frames', end = '')
@@ -159,22 +190,23 @@ class CodeSegments:
                    f'-r {frame_rate_animation:.5f} -f image2 -i ' +
                    temp_prefix + f'{scene:02d}_%3d.png' +
                    ' -vf fps=30' +
-                   f' -vcodec libx264 -s 1280x720' +
-                   f' {temp_prefix}{scene:02d}_anim.mp4' +
-                   ' >> /tmp/log 2> /dev/null')
+                   f' -vcodec libx264 -b 800k -s 1280x720' +
+                   f' {temp_prefix}{scene:02d}_anim.mp4'
+                   + ' >> /tmp/log 2> /dev/null'
+                   )
             concatation += f"file '{temp_prefix}{scene:02d}_anim.mp4'\n"
 
             if timeline[scene][1] != 0:
                 if verbose: print('\tCreating clip (pause)')
-                frame_rate_pause = 1 / timeline[scene][1]
                 system('ffmpeg -nostdin -loop 1 -i ' +
                        temp_prefix +
                        f'{scene:02d}_{scene_frames_count[scene] - 1:03d}.png' +
                        ' -vf fps=30' +
                        f' -vcodec libx264 -t {timeline[scene][1]}' +
-                       ' -s 1280x720' +
-                       f' {temp_prefix}{scene:02d}_pause.mp4' +
-                       ' >> /tmp/log 2> /dev/null')
+                       ' -b 800k -s 1280x720' +
+                       f' {temp_prefix}{scene:02d}_pause.mp4'
+                       + ' >> /tmp/log 2> /dev/null'
+                       )
             concatation += f"file '{temp_prefix}{scene:02d}_pause.mp4'\n"
         if verbose: print("< ")
 
@@ -190,24 +222,24 @@ class CodeSegments:
         if verbose: print('\n<')
 
         # cleanup
-        system(f'rm -f {temp_prefix}*.png')
+        system(f'rm -f {temp_prefix}*')
 
 
 def main():
-    source_code = open('hello.c', 'r').read()
-    segments = CodeSegments(source_code)
-    for s in segments.code_segments:
-        print(s)
-    # for s in range(segments.scene_counter + 1):
-    #     print('========================== ', s, '===========')
-    #     segments.animate_scene(s)
-    segments.animate([
-        (1, 1),
-        (1, 1),
-        (1, 1),
-        (1, 1),
-        (1, 1),
-    ])
+    source_code = open('samples/hello.c', 'r').read()
+    try:
+        segments = Typing(source_code)
+    except TypingNoTimeline:
+        print('No timeline found')
+    except TypingUnbalancedMarkup:
+        print('Unbalanced tag pairs found')
+    else:
+        # for s in segments.code_segments:
+        #     print(s)
+        # for s in range(segments.scene_counter + 1):
+        #     print('========================== ', s, '===========')
+        #     segments.animate_scene(s)
+        segments.animate()
 
 
 if __name__ == '__main__':
