@@ -6,8 +6,6 @@
 
     :copyright: Copyright 2006-2021 by the Pygments team, see AUTHORS.
     :license: BSD, see LICENSE for details.
-
-    Jander: image size set to 25 lines x 80 columns
 """
 
 from pygments.formatter import Formatter
@@ -19,14 +17,15 @@ __all__ = ['SvgFormatter']
 
 def escape_html(text):
     """Escape &, <, > as well as single and double quotes for HTML."""
-    return text.replace('&', '&amp;').  \
-                replace('<', '&lt;').   \
-                replace('>', '&gt;').   \
-                replace('"', '&quot;'). \
-                replace("'", '&#39;')
+    return text.replace('&', '&amp;'). \
+        replace('<', '&lt;'). \
+        replace('>', '&gt;'). \
+        replace('"', '&quot;'). \
+        replace("'", '&#39;')
 
 
 class2style = {}
+
 
 class SvgFormatter(Formatter):
     """
@@ -107,10 +106,10 @@ class SvgFormatter(Formatter):
         self.yoffset = get_int_opt(options, 'yoffset', int_fs)
         self.ystep = get_int_opt(options, 'ystep', int_fs + 5)
         self.spacehack = get_bool_opt(options, 'spacehack', True)
-        self.linenos = get_bool_opt(options,'linenos',False)
-        self.linenostart = get_int_opt(options,'linenostart',1)
-        self.linenostep = get_int_opt(options,'linenostep',1)
-        self.linenowidth = get_int_opt(options,'linenowidth', 3*self.ystep)
+        self.linenos = get_bool_opt(options, 'linenos', False)
+        self.linenostart = get_int_opt(options, 'linenostart', 1)
+        self.linenostep = get_int_opt(options, 'linenostep', 1)
+        self.linenowidth = get_int_opt(options, 'linenowidth', 3 * self.ystep)
         self._stylecache = {}
 
     def format_unencoded(self, tokensource, outfile):
@@ -131,7 +130,9 @@ class SvgFormatter(Formatter):
             outfile.write('<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.0//EN" '
                           '"http://www.w3.org/TR/2001/REC-SVG-20010904/DTD/'
                           'svg10.dtd">\n')
-            outfile.write('<svg xmlns="http://www.w3.org/2000/svg">\n')
+            outfile.write('<svg xmlns="http://www.w3.org/2000/svg" >\n')
+            outfile.write(f'<rect x="0px" y="0px" width="{52 * self.yoffset}px" height="{25 * self.ystep}px" fill="#121212"/>')
+            outfile.write(f'<rect x="0px" y="0px" width="{self.linenowidth + 10}px" height="{25 * self.ystep}px" fill="linen"/>')
             outfile.write('<g font-family="%s" font-size="%s">\n' %
                           (self.fontfamily, self.fontsize))
 
@@ -142,8 +143,9 @@ class SvgFormatter(Formatter):
 
         if self.linenos:
             if counter % counter_step == 0:
-                outfile.write('<text x="%s" y="%s" %s text-anchor="end">%s</text>' %
-                    (x+self.linenowidth,y,counter_style,counter))
+                outfile.write(
+                    '<text x="%s" y="%s" %s text-anchor="end">%s</text>' %
+                    (x + self.linenowidth, y, counter_style, counter))
             line_x += self.linenowidth + self.ystep
             counter += 1
 
@@ -161,11 +163,13 @@ class SvgFormatter(Formatter):
                 y += self.ystep
                 outfile.write('</text>\n')
                 if self.linenos and counter % counter_step == 0:
-                    outfile.write('<text x="%s" y="%s" text-anchor="end" %s>%s</text>' %
-                        (x+self.linenowidth,y,counter_style,counter))
+                    outfile.write(
+                        '<text x="%s" y="%s" text-anchor="end" %s>%s</text>' %
+                        (x + self.linenowidth, y, counter_style, counter))
 
                 counter += 1
-                outfile.write('<text x="%s" y="%s" ' 'xml:space="preserve">' % (line_x,y))
+                outfile.write('<text x="%s" y="%s" ' 'xml:space="preserve">' % (
+                    line_x, y))
             outfile.write(tspan + parts[-1] + tspanend)
         outfile.write('</text>')
 
