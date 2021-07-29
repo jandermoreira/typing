@@ -1,19 +1,20 @@
-# !/usr/bin/python3
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-#
 #
 #  Jander Moreira
 #
 #  Typing code animation
-from pytyping.pytyping import Typing
+import sys
+from pytyping import pytyping as pt
 
 
 def main():
-    source_code = open('samples/hellonew.c', 'r').read()
+    source_code = open(sys.argv[1], 'r').read()
     try:
-        segments = Typing(source_code, style = 'monokai')
-    except TypingNoTimeline:
+        segments = pt.Typing(source_code, style = 'friendly')
+    except pt.TypingNoTimeline:
         print('No timeline found')
-    except TypingUnbalancedMarkup:
+    except pt.TypingUnbalancedMarkup:
         print('Unbalanced tag pairs found')
     else:
         ''' run! '''
@@ -29,7 +30,7 @@ def main():
         #     print('========================== ', s, '===========')
         #     segments.animate_scene(s)
         segments.animate(verbose = True)
-        # segments.animate_scene(3)
+        # open('f.svg', 'w').write(segments.animate_scene(0)[0]['frames'][-1])
 
 
 if __name__ == '__main__':

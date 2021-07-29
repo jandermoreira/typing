@@ -24,13 +24,13 @@ class TypingUnbalancedMarkup(Exception):
 
 
 class Typing:
-    def __init__(self, source_code = '', language = 'C', style = 'native'):
+    def __init__(self, source_code = '', language = 'C', style = 'default'):
         self.scene_counter = 0
         self.language = language
         self.lexer = lexers.get_lexer_by_name(self.language)
         self.source_code = source_code
         self.code_segments = self.segment_code(source_code)
-        self.style = style
+        self.style = get_style_by_name(style)
 
     def segment_code(self, source_code):
         source_code = source_code.replace('\n', '@newline@')
@@ -99,7 +99,8 @@ class Typing:
         formatter = SvgFormatter(full = True,
                                  fontsize = '24px',
                                  linenos = True,
-                                 style = get_style_by_name(self.style))
+                                 style = self.style,
+                                 background_color = self.style.background_color)
         return highlight(code, self.lexer, formatter)
 
     def animate_scene(self, scene_number):
@@ -251,33 +252,5 @@ class Typing:
         if verbose: print('\n<')
 
         # cleanup
-        # system(f'rm -f {temp_prefix}*')
+        system(f'rm -f {temp_prefix}*')
 
-
-def main():
-    source_code = open('../samples/hellonew.c', 'r').read()
-    try:
-        segments = Typing(source_code, style = 'monokai')
-    except TypingNoTimeline:
-        print('No timeline found')
-    except TypingUnbalancedMarkup:
-        print('Unbalanced tag pairs found')
-    else:
-        ''' run! '''
-        # for s in segments.code_segments:
-        #     print(s)
-
-        # for s in range(segments.scene_counter + 1):
-        #     print('------------------------', s)
-        #     print(segments.code_scene(s))
-        # print(segments.code_scene(3))
-
-        # for s in range(segments.scene_counter + 1):
-        #     print('========================== ', s, '===========')
-        #     segments.animate_scene(s)
-        segments.animate(verbose = True)
-        # segments.animate_scene(3)
-
-
-if __name__ == '__main__':
-    main()

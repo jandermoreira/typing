@@ -95,7 +95,8 @@ class SvgFormatter(Formatter):
         Formatter.__init__(self, **options)
         self.nowrap = get_bool_opt(options, 'nowrap', False)
         self.fontfamily = options.get('fontfamily', 'monospace')
-        self.fontsize = options.get('fontsize', '14px')
+        self.fontsize = options.get('fontsize', '20px')
+        self.background_color = options.get('background_color', '#AAAAAA')
         self.xoffset = get_int_opt(options, 'xoffset', 0)
         fs = self.fontsize.strip()
         if fs.endswith('px'): fs = fs[:-2].strip()
@@ -131,8 +132,8 @@ class SvgFormatter(Formatter):
                           '"http://www.w3.org/TR/2001/REC-SVG-20010904/DTD/'
                           'svg10.dtd">\n')
             outfile.write('<svg xmlns="http://www.w3.org/2000/svg" >\n')
-            outfile.write(f'<rect x="0px" y="0px" width="{52 * self.yoffset}px" height="{25 * self.ystep}px" fill="#121212"/>')
-            outfile.write(f'<rect x="0px" y="0px" width="{self.linenowidth + 10}px" height="{25 * self.ystep}px" fill="linen"/>')
+            outfile.write(f'<rect x="0px" y="0px" width="{52 * self.yoffset}px" height="{25 * self.ystep}px" fill="{self.background_color}"/>')
+            outfile.write(f'<rect x="0px" y="0px" width="{self.linenowidth + 8}px" height="{25 * self.ystep}px" fill="linen"/>')
             outfile.write('<g font-family="%s" font-size="%s">\n' %
                           (self.fontfamily, self.fontsize))
 
