@@ -30,6 +30,7 @@ class Typing:
         self.lexer = lexers.get_lexer_by_name(self.language)
         self.source_code = source_code
         self.code_segments = self.segment_code(source_code)
+        print(style, '<<<<<<<<<<<<<<<<<<<<<<<<<<')
         self.style = get_style_by_name(style)
 
     def segment_code(self, source_code):
@@ -38,8 +39,9 @@ class Typing:
         # Get base times
         match_result = re.search(r'@base: \((.*?)\)@', source_code)
         if not match_result:
-            base_time = [3., 0.]
+            base_time = [3., 10.]
         else:
+            # todo: add an exception to handle str to float conversion
             base_time = [float(t) for t in match_result.group(1).split(',')]
             source_code = source_code.replace(match_result.group(0), '')
 
@@ -48,7 +50,7 @@ class Typing:
         code_segments = []
         while match_result:
             match_result = re.search(
-                r'@(from|only):(\d)[\s]*\((.*?)\)>(.*?)<(from|only)@',
+                r'@(from|only):([\d]+)[\s]*\((.*?)\)>(.*?)<(from|only)@',
                 source_code)
             if match_result:
                 if match_result.group(1) != match_result.group(5):
@@ -95,17 +97,21 @@ class Typing:
     def _typing_step():
         return randint(1, 3)
 
+    def _typo(self):
+        if randint(1, 100) <= 10:  # 25%
+            return ''.join([chr(randint(ord('a'), ord('z')))
+                            for n in range(randint(1, 3))])
+        else:
+            return ''
+
     def _create_frame(self, code):
         formatter = SvgFormatter(full = True,
                                  fontsize = '24px',
                                  linenos = True,
-                                 style = self.style,
-                                 background_color = self.style.background_color)
+                                 style = self.style)
         return highlight(code, self.lexer, formatter)
 
     def animate_scene(self, scene_number):
-        print(f'> Animating scene #{scene_number}')
-
         all_sequences = []
         if scene_number == 0:
             # animate base code
@@ -119,7 +125,8 @@ class Typing:
             while typing_position < len(source_code):
                 typing_position += self._typing_step()
                 image_sequence.append(self._create_frame(
-                    source_code[:typing_position + 1] + '\u2588'))
+                    source_code[:typing_position + 1] + self._typo() +
+                    '\u2588'))
             image_sequence.append(self._create_frame(source_code))
             all_sequences.append({
                 'typing': typing_time,
@@ -137,8 +144,6 @@ class Typing:
                                   seg['scene'] == scene_number]
 
             for animated_segment in animations_indexes:
-                print('>>> typing', segments[animated_segment],
-                      '\n>>>>>>>>>>>>>>>>>>>>>\n')
                 preceding_code = ''.join(
                     [seg['code'] for seg in segments[:animated_segment]])
                 animated_code = segments[animated_segment]['code']
@@ -151,11 +156,11 @@ class Typing:
                 image_sequence = []
                 typing_position = 0
                 while typing_position <= len(animated_code):
-                    # print(typing_position, '', end = '')
                     typing_position += self._typing_step()
                     image_sequence.append(self._create_frame(
                         preceding_code +
-                        animated_code[:typing_position + 1] + '\u2588' +
+                        animated_code[:typing_position + 1] +
+                        self._typo() + '\u2588' +
                         following_code))
                 image_sequence.append(self._create_frame(
                     preceding_code + animated_code + following_code))
@@ -187,21 +192,26 @@ class Typing:
         ffmpeg_options = '-vf fps=30 -vcodec libx264 -b:v 20M -s 1280x720 '
         # scene_frames_count = []
         concatation = ''
+        scene_frame_counter = 0  # for scene sequence in filenames
         for scene_counter in range(self.scene_counter + 1):
             if verbose:
                 print(f'> Scene #{scene_counter}:\n  - Creating frames ',
                       end = '')
             animations = self.animate_scene(scene_counter)
-            # if verbose: print(':', len(animations), 'animation(s)', end = '')
+            if verbose:
+                if len(animations) == 0:
+                    print('(empty)')
+                else:
+                    print(f'({len(animations)} animations)')
             for animation_counter, current_scene in enumerate(animations):
                 if verbose:
-                    print('\n  - Saving frames: ', current_scene['typing'],
-                          current_scene['pause'])
+                    print(f'  - Saving frames: ' +
+                          f'{current_scene["typing"]}s/' +
+                          f'{current_scene["pause"]}s')
                 for count, frame in enumerate(current_scene['frames']):
                     filename = temp_prefix + \
-                               f'{scene_counter:02d}_' + \
+                               f'{scene_frame_counter:02d}_' + \
                                f'{animation_counter:02d}_{count:03d}.svg'
-                    if verbose: print(f'\tFrame {count:03d}', filename)
                     open(filename, 'w').write(frame)
 
                 if verbose:
@@ -209,12 +219,12 @@ class Typing:
                           f'{len(current_scene["frames"])} frames')
                 frame_rate = \
                     len(current_scene['frames']) / current_scene['typing']
-                filename = f'{temp_prefix}{scene_counter:02d}' + \
+                filename = f'{temp_prefix}{scene_frame_counter:02d}' + \
                            f'_{animation_counter:02d}'
                 # print('    - file:', filename)
                 system('ffmpeg -nostdin ' +
                        f'-r {frame_rate:.5f} -f image2 -i ' +
-                       temp_prefix + f'{scene_counter:02d}_' +
+                       temp_prefix + f'{scene_frame_counter:02d}_' +
                        f'{animation_counter:02d}_%3d.svg ' +
                        ffmpeg_options +
                        filename + '_anim.mp4'
@@ -224,11 +234,11 @@ class Typing:
 
                 if current_scene['pause'] != 0:
                     if verbose: print('\tCreating clip (pause)')
-                    clip_filename = f'{temp_prefix}{scene_counter:02d}' + \
+                    clip_filename = f'{temp_prefix}{scene_frame_counter:02d}' + \
                                     f'_{animation_counter:02d}_pause.mp4'
                     system('ffmpeg -nostdin -loop 1 -i ' +
                            temp_prefix +
-                           f'{scene_counter:02d}_{animation_counter:02d}' +
+                           f'{scene_frame_counter:02d}_{animation_counter:02d}' +
                            f'_{len(current_scene["frames"]) - 1:03d}.svg ' +
                            ffmpeg_options +
                            f' -t {current_scene["pause"]} ' + clip_filename
@@ -236,8 +246,8 @@ class Typing:
                            )
                     concatation += \
                         f"file '{temp_prefix}" + \
-                        f"{scene_counter:02d}_{animation_counter:02d}_pause.mp4'\n"
-                if verbose: print("< ")
+                        f"{scene_frame_counter:02d}_{animation_counter:02d}_pause.mp4'\n"
+                scene_frame_counter += 1
 
         # final video
         if verbose:
@@ -249,8 +259,7 @@ class Typing:
                f'concat.txt -c copy -y code_{getpid()}.mp4'
                + ' >> /tmp/log 2> /tmp/log'
                )
-        if verbose: print('\n<')
+        if verbose: print('')
 
         # cleanup
         system(f'rm -f {temp_prefix}*')
-
